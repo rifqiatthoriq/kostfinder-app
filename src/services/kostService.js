@@ -1,19 +1,40 @@
-// Service data kos realistis dengan penanganan Secure API (Sprint 04)
-export const fetchKostCatalog = async (token) => {
+import NetInfo from '@react-native-community/netinfo';
+
+// Service data kos realistis dengan Error, Timeout, & Offline Handling (Sprint 05)
+export const fetchKostCatalog = async (token, options = {}) => {
+  const { forceError = false, forceEmpty = false } = options;
+
+  // 1. Cek Koneksi Internet (Offline Handling - Task 03)
+  const netState = await NetInfo.fetch();
+  if (!netState.isConnected) {
+    throw new Error('OFFLINE_ERROR');
+  }
+
+  // 2. Simulasi Fetch dengan Timeout Controller (10 Detik Batas Waktu)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   try {
-    // Memastikan request menyertakan token autentikasi (Checklist Task 02)
     if (!token) {
-      throw new Error("Unauthorized: Access token tidak ditemukan!");
+      throw new Error('401: Unauthorized. Silakan login kembali.');
     }
 
-    // Simulasi HTTP GET Request ke Protected Endpoint dengan Authorization Header
-    // Sesuai materi Sprint 04: "Authorization: Bearer <token>"
-    console.log(`[API REQUEST] Fetching catalog with Header -> Authorization: Bearer ${token}`);
+    // Simulasi Delay Network
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    clearTimeout(timeoutId);
 
-    // Simulasi delay network response
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    // Simulasi Skenario Error (HTTP Status Code Testing)
+    if (forceError) {
+      throw new Error('500: Server Sedang Gangguan. Silakan coba beberapa saat lagi.');
+    }
 
-    const realKostData = [
+    // Simulasi Skenario Data Kosong (Empty State Testing)
+    if (forceEmpty) {
+      return [];
+    }
+
+    // Data Katalog Kos Nyata
+    return [
       {
         id: '1',
         name: 'Kost Eksklusif Green House UMM',
@@ -63,10 +84,11 @@ export const fetchKostCatalog = async (token) => {
         image: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&q=80'
       }
     ];
-
-    return realKostData;
   } catch (error) {
-    console.error("Gagal mengambil data protected API:", error);
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('TIMEOUT_ERROR');
+    }
     throw error;
   }
 };
