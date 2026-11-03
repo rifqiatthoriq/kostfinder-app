@@ -1,23 +1,60 @@
 import React, { useEffect, useState } from 'react';
 import { 
   View, Text, FlatList, Image, ActivityIndicator, 
-  TouchableOpacity, StyleSheet, Modal, ScrollView, Alert 
+  TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, Vibration 
 } from 'react-native';
+import { Accelerometer } from 'expo-sensors';
 import { fetchKostCatalog } from '../services/kostService';
 import { removeSecureData } from '../utils/storage';
 
 export default function HomeScreen({ token, onLogout }) {
   const [kostList, setKostList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [errorType, setErrorType] = useState(null); // 'OFFLINE', 'TIMEOUT', 'HTTP_ERROR', null
+  const [errorType, setErrorType] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   
+  // --- STATE WEEK 7: SENSOR ACCELEROMETER ---
+  const [sensorData, setSensorData] = useState({ x: 0, y: 0, z: 0 });
+  const [isShaking, setIsShaking] = useState(false);
+
   // State Modal Detail
   const [selectedKost, setSelectedKost] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     loadData();
+
+    // Task 01 & 02: Mengaktifkan Listener Sensor Accelerometer
+    let subscription;
+    const subscribeSensor = async () => {
+      // Set update interval sensor ke 100ms (10 kali per detik)
+      Accelerometer.setUpdateInterval(100);
+
+      subscription = Accelerometer.addListener((data) => {
+        setSensorData(data);
+
+        // Task 03: Kalkulasi Magnitudo Gerakan & Shake Detection Threshold
+        const { x, y, z } = data;
+        const magnitude = Math.sqrt(x * x + y * y + z * z);
+        const threshold = 1.8; // Batas ambang batas goyangan
+
+        if (magnitude > threshold) {
+          setIsShaking(true);
+          // Memberikan Umpan Balik Getaran (Vibration) pada HP
+          Vibration.vibrate(400);
+
+          // Reset status shaking setelah 1.5 detik
+          setTimeout(() => setIsShaking(false), 1500);
+        }
+      });
+    };
+
+    subscribeSensor();
+
+    // Cleanup Listener saat komponen ditutup
+    return () => {
+      if (subscription) subscription.remove();
+    };
   }, []);
 
   const loadData = async (options = {}) => {
@@ -51,7 +88,6 @@ export default function HomeScreen({ token, onLogout }) {
 
   // --- RENDER UI STATES ---
 
-  // 1. LOADING STATE
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -62,7 +98,6 @@ export default function HomeScreen({ token, onLogout }) {
     );
   }
 
-  // 2. ERROR & OFFLINE STATE (Dengan Tombol Retry)
   if (errorType) {
     return (
       <View style={styles.centerContainer}>
@@ -85,21 +120,6 @@ export default function HomeScreen({ token, onLogout }) {
     );
   }
 
-  // 3. EMPTY STATE (Jika Data Kosong)
-  if (kostList.length === 0) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.iconText}>📦</Text>
-        <Text style={styles.stateTitle}>Belum Ada Data Kos</Text>
-        <Text style={styles.stateSubtitle}>Saat ini belum ada lokasi kos yang tersedia.</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => loadData()}>
-          <Text style={styles.retryButtonText}>🔄 Muat Ulang</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  // 4. SUCCESS STATE (Menampilkan Katalog Kos)
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -113,14 +133,29 @@ export default function HomeScreen({ token, onLogout }) {
         </TouchableOpacity>
       </View>
 
-      {/* Tombol Testing Error State (Untuk Memudahkan Demo Dosen) */}
-      <View style={styles.testBar}>
-        <TouchableOpacity style={styles.testBtn} onPress={() => loadData({ forceError: true })}>
-          <Text style={styles.testBtnText}>Tes Error 500</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.testBtn} onPress={() => loadData({ forceEmpty: true })}>
-          <Text style={styles.testBtnText}>Tes Empty</Text>
-        </TouchableOpacity>
+      {/* --- WEEK 7: PANEL MONITORING SENSOR ACCELEROMETER --- */}
+      <View style={[styles.sensorCard, isShaking && styles.sensorCardActive]}>
+        <View style={styles.sensorHeader}>
+          <Text style={styles.sensorTitle}>📱 Live Accelerometer Sensor</Text>
+          <Text style={[styles.sensorBadge, isShaking && styles.sensorBadgeActive]}>
+            {isShaking ? '🔔 GOYANG TERDETEKSI!' : '🟢 Sensor Aktif'}
+          </Text>
+        </View>
+
+        <View style={styles.sensorDataRow}>
+          <View style={styles.sensorBox}>
+            <Text style={styles.sensorAxis}>X (Kiri/Kanan)</Text>
+            <Text style={styles.sensorValue}>{sensorData.x.toFixed(2)}</Text>
+          </View>
+          <View style={styles.sensorBox}>
+            <Text style={styles.sensorAxis}>Y (Atas/Bawah)</Text>
+            <Text style={styles.sensorValue}>{sensorData.y.toFixed(2)}</Text>
+          </View>
+          <View style={styles.sensorBox}>
+            <Text style={styles.sensorAxis}>Z (Depan/Belakang)</Text>
+            <Text style={styles.sensorValue}>{sensorData.z.toFixed(2)}</Text>
+          </View>
+        </View>
       </View>
 
       <Text style={styles.sectionTitle}>Katalog Kos Terdekat</Text>
@@ -221,10 +256,17 @@ const styles = StyleSheet.create({
   retryButton: { backgroundColor: '#007AFF', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
   retryButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
   
-  // Testing Buttons Bar
-  testBar: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  testBtn: { backgroundColor: '#E9ECEF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
-  testBtnText: { fontSize: 12, color: '#495057', fontWeight: '600' },
+  // Panel Sensor Accelerometer (Week 7)
+  sensorCard: { backgroundColor: '#FFF', padding: 14, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E9ECEF' },
+  sensorCardActive: { borderColor: '#DC3545', backgroundColor: '#FFF5F5' },
+  sensorHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  sensorTitle: { fontSize: 14, fontWeight: 'bold', color: '#343A40' },
+  sensorBadge: { fontSize: 11, color: '#28A745', fontWeight: 'bold', backgroundColor: '#E8F5E9', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  sensorBadgeActive: { color: '#DC3545', backgroundColor: '#FFE5E5' },
+  sensorDataRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  sensorBox: { flex: 1, alignItems: 'center', backgroundColor: '#F8F9FA', paddingVertical: 8, borderRadius: 8, marginHorizontal: 2 },
+  sensorAxis: { fontSize: 10, color: '#6C757D', fontWeight: '600' },
+  sensorValue: { fontSize: 15, fontWeight: 'bold', color: '#007AFF', marginTop: 2 },
 
   // Card Styles
   card: { backgroundColor: '#FFF', borderRadius: 12, marginBottom: 16, overflow: 'hidden', elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
