@@ -6,6 +6,7 @@ import {
 import { Accelerometer } from 'expo-sensors';
 import { fetchKostCatalog } from '../services/kostService';
 import { removeSecureData } from '../utils/storage';
+import TodoSurveyScreen from './TodoSurveyScreen';
 
 export default function HomeScreen({ token, onLogout }) {
   const [kostList, setKostList] = useState([]);
@@ -13,37 +14,32 @@ export default function HomeScreen({ token, onLogout }) {
   const [errorType, setErrorType] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   
-  // --- STATE WEEK 7: SENSOR ACCELEROMETER ---
+  // State Sensor Accelerometer
   const [sensorData, setSensorData] = useState({ x: 0, y: 0, z: 0 });
   const [isShaking, setIsShaking] = useState(false);
 
-  // State Modal Detail
+  // State Modal Detail & Navigasi Todo Survey
   const [selectedKost, setSelectedKost] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [showTodoScreen, setShowTodoScreen] = useState(false);
 
   useEffect(() => {
     loadData();
 
-    // Task 01 & 02: Mengaktifkan Listener Sensor Accelerometer
     let subscription;
     const subscribeSensor = async () => {
-      // Set update interval sensor ke 100ms (10 kali per detik)
       Accelerometer.setUpdateInterval(100);
 
       subscription = Accelerometer.addListener((data) => {
         setSensorData(data);
 
-        // Task 03: Kalkulasi Magnitudo Gerakan & Shake Detection Threshold
         const { x, y, z } = data;
         const magnitude = Math.sqrt(x * x + y * y + z * z);
-        const threshold = 1.8; // Batas ambang batas goyangan
+        const threshold = 1.8;
 
         if (magnitude > threshold) {
           setIsShaking(true);
-          // Memberikan Umpan Balik Getaran (Vibration) pada HP
           Vibration.vibrate(400);
-
-          // Reset status shaking setelah 1.5 detik
           setTimeout(() => setIsShaking(false), 1500);
         }
       });
@@ -51,7 +47,6 @@ export default function HomeScreen({ token, onLogout }) {
 
     subscribeSensor();
 
-    // Cleanup Listener saat komponen ditutup
     return () => {
       if (subscription) subscription.remove();
     };
@@ -86,7 +81,9 @@ export default function HomeScreen({ token, onLogout }) {
     onLogout();
   };
 
-  // --- RENDER UI STATES ---
+  if (showTodoScreen) {
+    return <TodoSurveyScreen onBack={() => setShowTodoScreen(false)} />;
+  }
 
   if (loading) {
     return (
@@ -128,12 +125,20 @@ export default function HomeScreen({ token, onLogout }) {
           <Text style={styles.greeting}>Halo, Mahasiswa!</Text>
           <Text style={styles.location}>📍 Area Kampus Malang</Text>
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity 
+            style={{ backgroundColor: '#E3F2FD', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }} 
+            onPress={() => setShowTodoScreen(true)}
+          >
+            <Text style={{ color: '#007AFF', fontWeight: 'bold', fontSize: 12 }}>📝 Survey</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* --- WEEK 7: PANEL MONITORING SENSOR ACCELEROMETER --- */}
+      {/* Panel Monitoring Sensor Accelerometer */}
       <View style={[styles.sensorCard, isShaking && styles.sensorCardActive]}>
         <View style={styles.sensorHeader}>
           <Text style={styles.sensorTitle}>📱 Live Accelerometer Sensor</Text>
@@ -187,7 +192,7 @@ export default function HomeScreen({ token, onLogout }) {
         )}
       />
 
-      {/* MODAL DETAIL KOS (LAYER 3) */}
+      {/* MODAL DETAIL KOS */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -249,14 +254,12 @@ const styles = StyleSheet.create({
   logoutText: { color: '#D9534F', fontWeight: 'bold', fontSize: 12 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
   
-  // UI State Styles
   iconText: { fontSize: 48, marginBottom: 12 },
   stateTitle: { fontSize: 20, fontWeight: 'bold', color: '#212529', textAlign: 'center', marginBottom: 6 },
   stateSubtitle: { fontSize: 14, color: '#6C757D', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
   retryButton: { backgroundColor: '#007AFF', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
   retryButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
   
-  // Panel Sensor Accelerometer (Week 7)
   sensorCard: { backgroundColor: '#FFF', padding: 14, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E9ECEF' },
   sensorCardActive: { borderColor: '#DC3545', backgroundColor: '#FFF5F5' },
   sensorHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
@@ -268,7 +271,6 @@ const styles = StyleSheet.create({
   sensorAxis: { fontSize: 10, color: '#6C757D', fontWeight: '600' },
   sensorValue: { fontSize: 15, fontWeight: 'bold', color: '#007AFF', marginTop: 2 },
 
-  // Card Styles
   card: { backgroundColor: '#FFF', borderRadius: 12, marginBottom: 16, overflow: 'hidden', elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
   cardImage: { width: '100%', height: 180 },
   cardContent: { padding: 14 },
@@ -279,7 +281,6 @@ const styles = StyleSheet.create({
   badgeRoom: { backgroundColor: '#FFF3E0', color: '#E65100', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontSize: 12 },
   clickHint: { marginLeft: 'auto', color: '#007AFF', fontSize: 12, fontWeight: 'bold' },
 
-  // Modal Styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
   modalImage: { width: '100%', height: 220, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
