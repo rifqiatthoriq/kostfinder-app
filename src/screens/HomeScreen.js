@@ -7,6 +7,7 @@ import { Accelerometer } from 'expo-sensors';
 import { fetchKostCatalog } from '../services/kostService';
 import { removeSecureData } from '../utils/storage';
 import TodoSurveyScreen from './TodoSurveyScreen';
+import LocationMapScreen from './LocationMapScreen';
 
 export default function HomeScreen({ token, onLogout }) {
   const [kostList, setKostList] = useState([]);
@@ -14,14 +15,15 @@ export default function HomeScreen({ token, onLogout }) {
   const [errorType, setErrorType] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   
-  // State Sensor Accelerometer
+  // State Sensor Accelerometer (Week 7)
   const [sensorData, setSensorData] = useState({ x: 0, y: 0, z: 0 });
   const [isShaking, setIsShaking] = useState(false);
 
-  // State Modal Detail & Navigasi Todo Survey
+  // State Modal Detail & Navigasi Halaman
   const [selectedKost, setSelectedKost] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [showTodoScreen, setShowTodoScreen] = useState(false);
+  const [showMapScreen, setShowMapScreen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -85,6 +87,10 @@ export default function HomeScreen({ token, onLogout }) {
     return <TodoSurveyScreen onBack={() => setShowTodoScreen(false)} />;
   }
 
+  if (showMapScreen) {
+    return <LocationMapScreen onBack={() => setShowMapScreen(false)} />;
+  }
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -125,9 +131,15 @@ export default function HomeScreen({ token, onLogout }) {
           <Text style={styles.greeting}>Halo, Mahasiswa!</Text>
           <Text style={styles.location}>📍 Area Kampus Malang</Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flexDirection: 'row', gap: 6 }}>
           <TouchableOpacity 
-            style={{ backgroundColor: '#E3F2FD', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }} 
+            style={{ backgroundColor: '#E8F5E9', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 }} 
+            onPress={() => setShowMapScreen(true)}
+          >
+            <Text style={{ color: '#28A745', fontWeight: 'bold', fontSize: 12 }}>📍 Peta</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={{ backgroundColor: '#E3F2FD', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 }} 
             onPress={() => setShowTodoScreen(true)}
           >
             <Text style={{ color: '#007AFF', fontWeight: 'bold', fontSize: 12 }}>📝 Survey</Text>
@@ -248,9 +260,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F4F6F8', paddingHorizontal: 16, paddingTop: 50 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#F4F6F8' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  greeting: { fontSize: 20, fontWeight: 'bold' },
-  location: { color: '#6C757D', fontSize: 13 },
-  logoutBtn: { backgroundColor: '#FFE5E5', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  greeting: { fontSize: 18, fontWeight: 'bold' },
+  location: { color: '#6C757D', fontSize: 12 },
+  logoutBtn: { backgroundColor: '#FFE5E5', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 },
   logoutText: { color: '#D9534F', fontWeight: 'bold', fontSize: 12 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
   
