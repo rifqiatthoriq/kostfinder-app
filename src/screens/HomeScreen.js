@@ -4,10 +4,12 @@ import {
   TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, Vibration 
 } from 'react-native';
 import { Accelerometer } from 'expo-sensors';
+import * as Notifications from 'expo-notifications';
 import { fetchKostCatalog } from '../services/kostService';
 import { removeSecureData } from '../utils/storage';
 import TodoSurveyScreen from './TodoSurveyScreen';
 import LocationMapScreen from './LocationMapScreen';
+import NotificationCenterScreen from './NotificationCenterScreen';
 
 export default function HomeScreen({ token, onLogout }) {
   const [kostList, setKostList] = useState([]);
@@ -24,6 +26,28 @@ export default function HomeScreen({ token, onLogout }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [showTodoScreen, setShowTodoScreen] = useState(false);
   const [showMapScreen, setShowMapScreen] = useState(false);
+  const [showNotifScreen, setShowNotifScreen] = useState(false);
+
+  // Task 03 (Week 11): Menangani Interaksi Saat Pengguna Mengetuk Notifikasi (Deep Linking)
+  useEffect(() => {
+    const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
+      const targetScreen = response.notification.request.content.data?.screen;
+
+      // Tutup layar notif terlebih dahulu lalu arahkan ke halaman sesuai payload
+      setShowNotifScreen(false);
+      if (targetScreen === 'survey') {
+        setShowMapScreen(false);
+        setShowTodoScreen(true);
+      } else if (targetScreen === 'map') {
+        setShowTodoScreen(false);
+        setShowMapScreen(true);
+      }
+    });
+
+    return () => {
+      responseListener.remove();
+    };
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -91,6 +115,10 @@ export default function HomeScreen({ token, onLogout }) {
     return <LocationMapScreen onBack={() => setShowMapScreen(false)} />;
   }
 
+  if (showNotifScreen) {
+    return <NotificationCenterScreen onBack={() => setShowNotifScreen(false)} />;
+  }
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -131,23 +159,31 @@ export default function HomeScreen({ token, onLogout }) {
           <Text style={styles.greeting}>Halo, Mahasiswa!</Text>
           <Text style={styles.location}>📍 Area Kampus Malang</Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: 6 }}>
-          <TouchableOpacity 
-            style={{ backgroundColor: '#E8F5E9', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 }} 
-            onPress={() => setShowMapScreen(true)}
-          >
-            <Text style={{ color: '#28A745', fontWeight: 'bold', fontSize: 12 }}>📍 Peta</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={{ backgroundColor: '#E3F2FD', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 }} 
-            onPress={() => setShowTodoScreen(true)}
-          >
-            <Text style={{ color: '#007AFF', fontWeight: 'bold', fontSize: 12 }}>📝 Survey</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Bar Navigasi Fitur Praktikum (Week 8, 10, 11) */}
+      <View style={styles.navBar}>
+        <TouchableOpacity 
+          style={[styles.navPill, { backgroundColor: '#E8F5E9' }]} 
+          onPress={() => setShowMapScreen(true)}
+        >
+          <Text style={[styles.navPillText, { color: '#28A745' }]}>📍 Peta LBS</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.navPill, { backgroundColor: '#E3F2FD' }]} 
+          onPress={() => setShowTodoScreen(true)}
+        >
+          <Text style={[styles.navPillText, { color: '#007AFF' }]}>📝 Survey</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.navPill, { backgroundColor: '#FFF3CD' }]} 
+          onPress={() => setShowNotifScreen(true)}
+        >
+          <Text style={[styles.navPillText, { color: '#856404' }]}>🔔 Notif</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Panel Monitoring Sensor Accelerometer */}
@@ -259,11 +295,16 @@ export default function HomeScreen({ token, onLogout }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F4F6F8', paddingHorizontal: 16, paddingTop: 50 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#F4F6F8' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  greeting: { fontSize: 18, fontWeight: 'bold' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  greeting: { fontSize: 19, fontWeight: 'bold' },
   location: { color: '#6C757D', fontSize: 12 },
-  logoutBtn: { backgroundColor: '#FFE5E5', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 },
+  logoutBtn: { backgroundColor: '#FFE5E5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   logoutText: { color: '#D9534F', fontWeight: 'bold', fontSize: 12 },
+  
+  navBar: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  navPill: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  navPillText: { fontWeight: 'bold', fontSize: 12 },
+
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
   
   iconText: { fontSize: 48, marginBottom: 12 },
